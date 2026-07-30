@@ -18,6 +18,8 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+
+
 set(EXTERNAL_SOURCES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/extern)
 set(CMSIS_SOURCES_PATH ${EXTERNAL_SOURCES_PATH}/cmsis)
 set(CORE_SOURCES_PATH ${EXTERNAL_SOURCES_PATH}/core)
@@ -59,6 +61,13 @@ target_include_directories(${PROJECT_NAME}
         PUBLIC ${CMSIS_SOURCES_PATH}/Include
         PUBLIC ${CORE_SOURCES_PATH}/Core/Include
         PUBLIC ${CMAKE_SOURCE_DIR}/include
+)
+
+
+execute_process(
+        COMMAND ${CMAKE_COMMAND} -E create_symlink
+        ${CMAKE_BINARY_DIR}/compile_commands.json
+        ${CMAKE_SOURCE_DIR}/compile_commands.json
 )
 
 add_subdirectory(tests)
