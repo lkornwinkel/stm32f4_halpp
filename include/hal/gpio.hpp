@@ -3,7 +3,7 @@
 
 #include <hal/error.hpp>
 
-#include <stm32f4xx.h>
+#include <hal/cmsis.hpp>
 
 #include <cstdint>
 
