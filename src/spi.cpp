@@ -14,6 +14,7 @@ namespace hal {
         miso_ = Gpio{};
     }
 
+
     Error Spi::setup(SpiConfig const &config) {
         Error err;
         device_ = config.device;

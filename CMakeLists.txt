@@ -19,6 +19,8 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 
+add_compile_definitions("STM32F446xx")
+
 
 set(EXTERNAL_SOURCES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/extern)
 set(CMSIS_SOURCES_PATH ${EXTERNAL_SOURCES_PATH}/cmsis)
@@ -48,7 +50,7 @@ add_library(cmsis STATIC ${CMSIS_SOURCES})
 
 target_include_directories(cmsis
         PUBLIC ${CMSIS_SOURCES_PATH}/Include
-        PUBLIC ${CORE_SOURCES_PATH}/Core/Include
+        PUBLIC ${CORE_SOURCES_PATH}/CMSIS/Core/Include
 )
 
 
@@ -59,7 +61,7 @@ add_library(${PROJECT_NAME} STATIC ${STM32F4_HAL_SOURCES} ${STM32F4_HAL_INCLUDES
 target_include_directories(${PROJECT_NAME}
         PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
         PUBLIC ${CMSIS_SOURCES_PATH}/Include
-        PUBLIC ${CORE_SOURCES_PATH}/Core/Include
+        PUBLIC ${CORE_SOURCES_PATH}/CMSIS/Core/Include
         PUBLIC ${CMAKE_SOURCE_DIR}/include
 )
 
