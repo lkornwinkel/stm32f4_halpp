@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.28)
 set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-project(stm32f4_hal C CXX ASM)
+project(stm32f4_halpp C CXX ASM)
 
 set(CMAKE_SYSTEM_NAME Generic)
 set(CMAKE_SYSTEM_VERSION 1)
@@ -18,8 +18,13 @@ set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-
 add_compile_definitions("STM32F446xx")
+
+set(OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/output)
+file(MAKE_DIRECTORY ${OUTPUT_DIR})
+
+option(RUN_TESTS "Run testes" OFF)
+
 
 
 set(EXTERNAL_SOURCES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/extern)
@@ -71,6 +76,14 @@ execute_process(
         ${CMAKE_BINARY_DIR}/compile_commands.json
         ${CMAKE_SOURCE_DIR}/compile_commands.json
 )
+add_custom_command(
+        TARGET ${PROJECT_NAME} POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy
+        ${CMAKE_CURRENT_BINARY_DIR}/libstm32f4_halpp.a
+        ${OUTPUT_DIR}/libstm32f4_halpp.a
+)
 
-add_subdirectory(tests)
+if(RUN_TESTS)
+    add_subdirectory(tests)
+endif ()
 
