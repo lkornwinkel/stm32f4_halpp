@@ -25,7 +25,7 @@ if (NOT EXISTS ${CMSIS_DEVICE_DIR}/Include)
     message(FATAL_ERROR "extern/cmsis is empty — run: git submodule update --init --recursive")
 endif ()
 
-if (NOT EXISTS ${CMSIS_CORE_DIR}/Core/Include)
+if (NOT EXISTS ${CMSIS_CORE_DIR}/CMSIS/Core/Include)
     message(FATAL_ERROR "extern/core is empty — run: git submodule update --init --recursive")
 endif ()
 
@@ -34,7 +34,7 @@ add_library(stm32f4_halpp::cmsis ALIAS stm32f4_halpp_cmsis)
 
 target_include_directories(stm32f4_halpp_cmsis SYSTEM INTERFACE
         $<BUILD_INTERFACE:${CMSIS_DEVICE_DIR}/Include>
-        $<BUILD_INTERFACE:${CMSIS_CORE_DIR}/Core/Include>
+        $<BUILD_INTERFACE:${CMSIS_CORE_DIR}/CMSIS/Core/Include>
         $<INSTALL_INTERFACE:include>)
 target_compile_definitions(stm32f4_halpp_cmsis INTERFACE ${STM32F4_HALPP_DEVICE})
 
