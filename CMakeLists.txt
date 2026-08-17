@@ -1,89 +1,116 @@
 cmake_minimum_required(VERSION 3.28)
-set(CMAKE_TRY_COMPILE_TARGET_TYPE STATIC_LIBRARY)
-project(stm32f4_halpp C CXX ASM)
 
-set(CMAKE_SYSTEM_NAME Generic)
-set(CMAKE_SYSTEM_VERSION 1)
+project(stm32f4_halpp
+        VERSION 0.1.0
+        DESCRIPTION "C++ HAL for STM32F4"
+        LANGUAGES C CXX ASM)
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+#option(STM32F4_HALPP_BUILD_TESTS "Build on-target test firmware" ${PROJECT_IS_TOP_LEVEL})
+#option(STM32F4_HALPP_INSTALL     "Generate install/export rules" ${PROJECT_IS_TOP_LEVEL})
+set(STM32F4_HALPP_DEVICE "STM32F446xx" CACHE STRING "CMSIS device macro")
 
-set(TOOLCHAIN_PREFIX arm-none-eabi-)
-set(TOOLCHAIN_PATH "/home/lars/opt/STM32CubeCLT/GNU-tools-for-STM32/bin")
+if (PROJECT_IS_TOP_LEVEL)
+    if (NOT CMAKE_CROSSCOMPILING)
+        message(FATAL_ERROR
+                "Configure with a toolchain, e.g. --preset debug or "
+                "-DCMAKE_TOOLCHAIN_FILE=${CMAKE_CURRENT_SOURCE_DIR}/toolchain.cmake")
+    endif ()
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+endif ()
 
-include(toolchain.cmake)
+set(CMSIS_DEVICE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extern/cmsis)
+set(CMSIS_CORE_DIR   ${CMAKE_CURRENT_SOURCE_DIR}/extern/core)
 
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 26)
-set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+if (NOT EXISTS ${CMSIS_DEVICE_DIR}/Include)
+    message(FATAL_ERROR "extern/cmsis is empty — run: git submodule update --init --recursive")
+endif ()
 
-set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+add_library(stm32f4_halpp_cmsis INTERFACE)
+add_library(stm32f4_halpp::cmsis ALIAS stm32f4_halpp_cmsis)
 
-add_compile_definitions("STM32F446xx")
-
-set(OUTPUT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/output)
-file(MAKE_DIRECTORY ${OUTPUT_DIR})
-
-option(RUN_TESTS "Run testes" OFF)
-
+target_include_directories(stm32f4_halpp_cmsis SYSTEM INTERFACE
+        $<BUILD_INTERFACE:${CMSIS_DEVICE_DIR}/Include>
+        $<BUILD_INTERFACE:${CMSIS_CORE_DIR}/CMSIS/Core/Include>
+        $<INSTALL_INTERFACE:include>)
+target_compile_definitions(stm32f4_halpp_cmsis INTERFACE ${STM32F4_HALPP_DEVICE})
 
 
-set(EXTERNAL_SOURCES_PATH ${CMAKE_CURRENT_SOURCE_DIR}/extern)
-set(CMSIS_SOURCES_PATH ${EXTERNAL_SOURCES_PATH}/cmsis)
-set(CORE_SOURCES_PATH ${EXTERNAL_SOURCES_PATH}/core)
+add_library(stm32f4_halpp_startup INTERFACE)
+add_library(stm32f4_halpp::startup ALIAS stm32f4_halpp_startup)
 
-set(STM32F4_HAL_SOURCES
+target_sources(stm32f4_halpp_startup INTERFACE
+        $<BUILD_INTERFACE:${CMSIS_DEVICE_DIR}/Source/Templates/gcc/startup_stm32f446xx.s>
+        $<BUILD_INTERFACE:${CMSIS_DEVICE_DIR}/Source/Templates/system_stm32f4xx.c>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/syscalls.c>)
+target_link_libraries(stm32f4_halpp_startup INTERFACE stm32f4_halpp::cmsis)
+
+add_library(stm32f4_halpp_linker_script INTERFACE)
+add_library(stm32f4_halpp::linker_script ALIAS stm32f4_halpp_linker_script)
+set(STM32F4_HALPP_LD ${CMAKE_CURRENT_SOURCE_DIR}/STM32F446XX_FLASH.ld)
+target_link_options(stm32f4_halpp_linker_script INTERFACE
+        -T${STM32F4_HALPP_LD} --specs=nano.specs -Wl,--gc-sections -Wl,--print-memory-usage)
+set_target_properties(stm32f4_halpp_linker_script PROPERTIES
+        INTERFACE_LINK_DEPENDS ${STM32F4_HALPP_LD})
+
+
+add_library(stm32f4_halpp STATIC
         src/gpio.cpp
         src/clock.cpp
         src/uart.cpp
-        src/spi.cpp
-)
+        src/spi.cpp)
+add_library(stm32f4_halpp::stm32f4_halpp ALIAS stm32f4_halpp)
 
-set(STM32F4_HAL_INCLUDES
+target_sources(stm32f4_halpp PUBLIC
+        FILE_SET  hal_headers
+        TYPE      HEADERS
+        BASE_DIRS ${CMAKE_CURRENT_SOURCE_DIR}/include
+        FILES
         include/hal/gpio.hpp
         include/hal/clock.hpp
         include/hal/error.hpp
         include/hal/uart.hpp
         include/hal/spi.hpp
-)
-#
-set(STARTUP_FILE ${CMSIS_SOURCES_PATH}/Source/Templates/gcc/startup_stm32f446xx.s)
-set(SYSTEM_FILE ${CMSIS_SOURCES_PATH}/Source/Templates/system_stm32f4xx.c)
-set(SYSCALL_FILE ${CMAKE_SOURCE_DIR}/syscalls.c)
-set(CMSIS_SOURCES ${STARTUP_FILE} ${SYSTEM_FILE} ${SYSCALL_FILE})
+        include/hal/cmsis.hpp)
 
-add_library(cmsis STATIC ${CMSIS_SOURCES})
+target_link_libraries(stm32f4_halpp PUBLIC stm32f4_halpp::cmsis)
+target_compile_features(stm32f4_halpp PUBLIC cxx_std_26)
+set_target_properties(stm32f4_halpp PROPERTIES
+        CXX_SCAN_FOR_MODULES OFF
+        EXPORT_NAME          stm32f4_halpp)
 
-target_include_directories(cmsis
-        PUBLIC ${CMSIS_SOURCES_PATH}/Include
-        PUBLIC ${CORE_SOURCES_PATH}/CMSIS/Core/Include
-)
-
-
-set_target_properties(cmsis PROPERTIES LINKER_LANGUAGE CXX)
-
-add_library(${PROJECT_NAME} STATIC ${STM32F4_HAL_SOURCES} ${STM32F4_HAL_INCLUDES})
-
-target_include_directories(${PROJECT_NAME}
-        PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
-        PUBLIC ${CMSIS_SOURCES_PATH}/Include
-        PUBLIC ${CORE_SOURCES_PATH}/CMSIS/Core/Include
-        PUBLIC ${CMAKE_SOURCE_DIR}/include
-)
+if (PROJECT_IS_TOP_LEVEL)
+    set_target_properties(stm32f4_halpp PROPERTIES
+            ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/output)
+    file(CREATE_LINK ${CMAKE_BINARY_DIR}/compile_commands.json
+            ${CMAKE_CURRENT_SOURCE_DIR}/compile_commands.json SYMBOLIC)
+endif ()
 
 
-execute_process(
-        COMMAND ${CMAKE_COMMAND} -E create_symlink
-        ${CMAKE_BINARY_DIR}/compile_commands.json
-        ${CMAKE_SOURCE_DIR}/compile_commands.json
-)
-add_custom_command(
-        TARGET ${PROJECT_NAME} POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E copy
-        ${CMAKE_CURRENT_BINARY_DIR}/libstm32f4_halpp.a
-        ${OUTPUT_DIR}/libstm32f4_halpp.a
-)
-
-if(RUN_TESTS)
+if (STM32F4_HALPP_BUILD_TESTS)
     add_subdirectory(tests)
 endif ()
+
+if (STM32F4_HALPP_INSTALL)
+    include(GNUInstallDirs)
+    include(CMakePackageConfigHelpers)
+
+    install(TARGETS stm32f4_halpp stm32f4_halpp_cmsis
+            EXPORT   stm32f4_halppTargets
+            FILE_SET hal_headers)
+    install(DIRECTORY ${CMSIS_DEVICE_DIR}/Include/ ${CMSIS_CORE_DIR}/CMSIS/Core/Include/
+            DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
+    install(EXPORT stm32f4_halppTargets
+            NAMESPACE   stm32f4_halpp::
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stm32f4_halpp)
+
+    write_basic_package_version_file(stm32f4_halppConfigVersion.cmake
+            COMPATIBILITY SameMajorVersion ARCH_INDEPENDENT)
+    configure_package_config_file(cmake/stm32f4_halppConfig.cmake.in
+            stm32f4_halppConfig.cmake
+            INSTALL_DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stm32f4_halpp)
+    install(FILES ${CMAKE_CURRENT_BINARY_DIR}/stm32f4_halppConfig.cmake
+            ${CMAKE_CURRENT_BINARY_DIR}/stm32f4_halppConfigVersion.cmake
+            DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/stm32f4_halpp)
+endif ()
+
 

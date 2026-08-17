@@ -16,7 +16,7 @@ namespace hal {
 
 
     Error Uart::send_polling(std::uint8_t const *data, std::size_t size) {
-        Error err;
+        Error err = Error::OK;
 
         enable();
         enable_transmitter();
